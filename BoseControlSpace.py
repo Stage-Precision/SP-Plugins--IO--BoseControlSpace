@@ -27,32 +27,40 @@ class BoseControlSpace(sp.BaseModule):
 
 	def connectTcpSocket(self):
 		self.tcpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		try:
-			if self.log.value == True:
-				print(f"Bose ControlSpace connecting to: {self.ip.value}:{int(self.port.value)}")
-			self.tcpSocket.connect((self.ip.value, int(self.port.value)))
-			if self.log.value == True:
-				print(f"Bose ControlSpace connected")
-				self.online.value = True
-		except socket.error as e: 
-			if self.log.value == True:
-				print ("Connection error: %s" % e) 
+		if self.ip.value != "":
+			try:
+				if self.log.value == True:
+					print(f"Bose ControlSpace connecting to: {self.ip.value}:{int(self.port.value)}")
+				self.tcpSocket.connect((self.ip.value, int(self.port.value)))
+				if self.log.value == True:
+					print(f"Bose ControlSpace connected")
+					self.online.value = True
+				return True
+			except socket.error as e: 
+				if self.log.value == True:
+					print ("Connection error: %s" % e) 
 				self.online.value = False
+				return False
+		else:
+			if self.log.value == True:
+				print("Bose ControlSpace Host IP not defined")
+			self.online.value = False
+			return False
 		
 	def sendTcpMessage(self, msg):
-		self.connectTcpSocket()
-		if self.log.value == True:
-			print(f"Bose ControlSpace Sent Message: {msg}")
-		sent = self.tcpSocket.send(msg.encode())
-		if sent == 0:
+		if self.connectTcpSocket():
 			if self.log.value == True:
-				print("Bose ControlSpace Socket Connection Broken")
-		recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
-		self.tcpSocket.close()
-		return recvMsg
+				print(f"Bose ControlSpace Sent Message: {msg}")
+			sent = self.tcpSocket.send(msg.encode())
+			if sent == 0:
+				if self.log.value == True:
+					print("Bose ControlSpace Socket Connection Broken")
+			recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
+			self.tcpSocket.close()
+			return recvMsg
 
 	def checkFunction(self):
-		if self.ip.value != "":
+		if self.connectTcpSocket():
 			recvMsg = self.sendTcpMessage("IP\r\n")
 			recvData = ""
 			if recvMsg[:2] == "IP":
@@ -93,11 +101,11 @@ class BoseControlSpace(sp.BaseModule):
 		if self.log.value == True:
 			print("Bose ControlSpace Checker")
 		if self.ip.value != "":
-			self.connectTcpSocket()
+			self.checkFunction()
 	
 	def onParameterFeedback(self, parameter):
 		if parameter == self.ip or parameter == self.port:
-			self.connectTcpSocket()
+			self.checkFunction()
 
 	def setParameterSet(self, parameterSet):
 		self.sendTcpMessage(f"SS {parameterSet}\r\n")
