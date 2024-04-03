@@ -6,8 +6,6 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"lib"))
 
-# Still need to check when connection sometimes drops out.
-
 class BoseControlSpace(sp.BaseModule):
 
 	#plugin info used 
@@ -27,6 +25,7 @@ class BoseControlSpace(sp.BaseModule):
 
 	def connectTcpSocket(self):
 		self.tcpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.BufferSize = 1024
 		if self.ip.value != "":
 			try:
 				if self.log.value == True:
@@ -55,27 +54,7 @@ class BoseControlSpace(sp.BaseModule):
 			if sent == 0:
 				if self.log.value == True:
 					print("Bose ControlSpace Socket Connection Broken")
-			recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
-			self.tcpSocket.close()
-			return recvMsg
 
-	def checkFunction(self):
-		if self.connectTcpSocket():
-			recvMsg = self.sendTcpMessage("IP\r\n")
-			recvData = ""
-			if recvMsg[:2] == "IP":
-				recvData = recvMsg[3:-1]
-			print(f"Received msg: {recvMsg}")
-			print(f"Returned IP: {recvData}")
-			if self.ip.value == recvData:
-				if self.log.value == True:
-					print("Bose ControlSpace Online")
-				self.online.value = True
-			else:
-				if self.log.value == True:
-					print("Bose ControlSpace Offline")
-				self.online.value = False
-		self.tcpSocket.close()
 
 	def afterInit(self):
 		self.data = self.moduleContainer.addDataParameter("Data")
@@ -98,8 +77,6 @@ class BoseControlSpace(sp.BaseModule):
 		setGroupVolumeMasterMuteAction.addBoolParameter("Mute", False)
 
 		self.addTimer("Checker", 30, self.checkFunction)
-		if self.log.value == True:
-			print("Bose ControlSpace Checker")
 		if self.ip.value != "":
 			self.checkFunction()
 	
@@ -107,14 +84,35 @@ class BoseControlSpace(sp.BaseModule):
 		if parameter == self.ip or parameter == self.port:
 			self.checkFunction()
 
+	def checkFunction(self):
+		if self.log.value == True:
+			print("Bose ControlSpace Checker")
+		if self.connectTcpSocket():
+			self.sendTcpMessage("IP\r")
+			recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
+			recvData = ""
+			if recvMsg[:2] == "IP":
+				recvData = recvMsg[3:-1]
+			print(f"Received msg: {recvMsg}")
+			print(f"Returned IP: {recvData}")
+			if self.ip.value == recvData:
+				if self.log.value == True:
+					print("Bose ControlSpace Online")
+				self.online.value = True
+			else:
+				if self.log.value == True:
+					print("Bose ControlSpace Offline")
+				self.online.value = False
+		self.tcpSocket.close()
+
 	def setParameterSet(self, parameterSet):
-		self.sendTcpMessage(f"SS {parameterSet}\r\n")
+		self.sendTcpMessage(f"SS {parameterSet}\r")
 
 	def setGroupVolumeMasterLevel(self, group, level):
-		self.sendTcpMessage(f"SG {group},{level}\r\n")
+		self.sendTcpMessage(f"SG {group},{level}\r")
 
 	def setGroupVolumeMasterMute(self, group, mute):
-		self.sendTcpMessage(f"SN {group},{'M' if mute==True else 'U'}\r\n")
+		self.sendTcpMessage(f"SN {group},{'M' if mute==True else 'U'}\r")
 
 if __name__ == "__main__":
 	sp.registerPlugin(BoseControlSpace)
