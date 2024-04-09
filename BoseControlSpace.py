@@ -63,18 +63,53 @@ class BoseControlSpace(sp.BaseModule):
 		self.log = self.moduleContainer.addBoolParameter("Log", True)
 		self.online = self.moduleContainer.addBoolParameter("Online", False)
 
-		checkStatusAction = self.addAction("Check Status", "checkStatus", self.checkFunction)
+		#checkStatusAction = self.addAction("Check Status", "checkStatus", self.checkFunction)
 
 		setParameterSetAction = self.addAction("Set Parameter Set", "setParameterSet", self.setParameterSet)
-		setParameterSetAction.addIntParameter("Parameter Set", 1, 1, 255)  
+		setParameterSetAction.addIntParameter("Parameter Set", 1, 1, 255)
+
+		getParameterSetAction = self.addAction("Get Parameter Set", "getParameterSet", self.getParameterSet)
+		getParameterSetAction.addScriptTokens(["ParameterSet"])
 
 		setGroupVolumeMasterLevelAction = self.addAction("Set Group Volume Master Level", "setGroupVolumeMasterLevel", self.setGroupVolumeMasterLevel)
 		setGroupVolumeMasterLevelAction.addIntParameter("Group", 1, 1, 64)
 		setGroupVolumeMasterLevelAction.addIntParameter("Level", 0, 0, 144)
 
+		getGroupVolumeMasterLevelAction = self.addAction("Get Group Volume Master Level", "getGroupVolumeMasterLevel", self.getGroupVolumeMasterLevel)
+		getGroupVolumeMasterLevelAction.addIntParameter("Group", 1, 1, 64)
+		getGroupVolumeMasterLevelAction.addScriptTokens(["Level"])
+
 		setGroupVolumeMasterMuteAction = self.addAction("Set Group Volume Master Mute", "setGroupVolumeMasterMute", self.setGroupVolumeMasterMute)
 		setGroupVolumeMasterMuteAction.addIntParameter("Group", 1, 1, 64)
 		setGroupVolumeMasterMuteAction.addBoolParameter("Mute", False)
+
+		getGroupVolumeMasterMuteAction = self.addAction("Get Group Volume Master Mute", "getGroupVolumeMasterMute", self.getGroupVolumeMasterMute)
+		getGroupVolumeMasterMuteAction.addIntParameter("Group", 1, 1, 64)
+		getGroupVolumeMasterMuteAction.addScriptTokens(["Mute"])
+
+		setSlotChannelVolumeAction = self.addAction("Set Slot Channel Volume", "setSlotChannelVolume", self.setSlotChannelVolume)
+		setSlotChannelVolumeAction.addIntParameter("Slot", 1, 1, 9)
+		setSlotChannelVolumeAction.addIntParameter("Channel", 1, 1, 8)
+		setSlotChannelVolumeAction.addIntParameter("Level", 0, 0, 144)
+
+		getSlotChannelVolumeAction = self.addAction("Get Slot Channel Volume", "getSlotChannelVolume", self.getSlotChannelVolume)
+		getSlotChannelVolumeAction.addIntParameter("Slot", 1, 1, 9)
+		getSlotChannelVolumeAction.addIntParameter("Channel", 1, 1, 8)
+		getSlotChannelVolumeAction.addScriptTokens(["Level"])
+
+		setSlotChannelMuteAction = self.addAction("Set Slot Channel Mute", "setSlotChannelMute", self.setSlotChannelMute)
+		setSlotChannelMuteAction.addIntParameter("Slot", 1, 1, 9)
+		setSlotChannelMuteAction.addIntParameter("Channel", 1, 1, 8)
+		setSlotChannelMuteAction.addBoolParameter("Mute", False)
+
+		getSlotChannelMuteAction = self.addAction("Get Slot Channel Mute", "getSlotChannelMute", self.getSlotChannelMute)
+		getSlotChannelMuteAction.addIntParameter("Slot", 1, 1, 9)
+		getSlotChannelMuteAction.addIntParameter("Channel", 1, 1, 8)
+		getSlotChannelMuteAction.addScriptTokens(["Mute"])
+
+		#getSignalLevelAction = self.addAction("Get Signal Level", "getSignalLevel", self.getSignalLevel)
+		#getSignalLevelAction.addIntParameter("Slot", 1, 1, 9)
+		
 
 		self.addTimer("Checker", 30, self.checkFunction)
 		if self.ip.value != "":
@@ -93,8 +128,8 @@ class BoseControlSpace(sp.BaseModule):
 			recvData = ""
 			if recvMsg[:2] == "IP":
 				recvData = recvMsg[3:-1]
-			print(f"Received msg: {recvMsg}")
-			print(f"Returned IP: {recvData}")
+			if self.log.value == True:
+				print(f"Received msg: {recvMsg}")
 			if self.ip.value == recvData:
 				if self.log.value == True:
 					print("Bose ControlSpace Online")
@@ -105,14 +140,113 @@ class BoseControlSpace(sp.BaseModule):
 				self.online.value = False
 		self.tcpSocket.close()
 
-	def setParameterSet(self, parameterSet):
+	def setParameterSet(self, callback, parameterSet):
 		self.sendTcpMessage(f"SS {parameterSet}\r")
+		callback(True)
 
-	def setGroupVolumeMasterLevel(self, group, level):
+	def getParameterSet(self, callback):
+		self.sendTcpMessage("GS\r")
+		recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
+		recvData = ""
+		if recvMsg[:1] == "S":
+			recvData = recvMsg.split()[1]
+		if self.log.value == True:
+			print(f"Received msg: {recvMsg}")
+		callback(True)
+		return {"ParameterSet":recvData}
+
+	def setGroupVolumeMasterLevel(self, callback, group, level):
 		self.sendTcpMessage(f"SG {group},{level}\r")
+		callback(True)
 
-	def setGroupVolumeMasterMute(self, group, mute):
+	def getGroupVolumeMasterLevel(self, callback, group):
+		self.sendTcpMessage(f"GG {group}\r")
+		recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
+		if self.log.value == True:
+			print(f"Received msg: {recvMsg}")
+		recvData = ""
+		if recvMsg[:2] == "GG":
+			recvSet = recvMsg.split()[1]
+			recvGroup = recvSet.split(",")[0]
+			recvData = recvMsg.split(",")[1]
+			if int(recvGroup) == group:
+				callback(True)
+				return {"Level":int(recvData)}
+			else:
+				if self.log.value == True:
+					print("Received msg does not match requested command")
+		callback(True)
+
+	def setGroupVolumeMasterMute(self, callback, group, mute):
 		self.sendTcpMessage(f"SN {group},{'M' if mute==True else 'U'}\r")
+		callback(True)
+
+	def getGroupVolumeMasterMute(self, callback, group):
+		self.sendTcpMessage(f"GN {group}\r")
+		recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
+		if self.log.value == True:
+			print(f"Received msg: {recvMsg}")
+		recvData = ""
+		if recvMsg[:2] == "GN":
+			recvSet = recvMsg.split()[1]
+			recvGroup = recvSet.split(",")[0]
+			recvData = recvMsg.split(",")[1]
+			if int(recvGroup) == group:
+				callback(True)
+				return {"Mute":True if recvData=='M' else False}
+			else:
+				if self.log.value == True:
+					print("Received msg does not match requested command")
+		callback(True)
+	
+
+	def setSlotChannelVolume(self, callback, slot, channel, level):
+		self.sendTcpMessage(f"SV {slot},{channel},{level}\r")
+		callback(True)
+
+	def getSlotChannelVolume(self, callback, slot, channel):
+		self.sendTcpMessage(f"GV {slot},{channel}\r")
+		recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
+		if self.log.value == True:
+			print(f"Received msg: {recvMsg}")
+		recvData = ""
+		if recvMsg[:2] == "GV":
+			recvSet = recvMsg.split()[1]
+			recvSlot = recvSet.split(",")[0]
+			recvChannel = recvSet.split(",")[1]
+			recvData = recvMsg.split(",")[2]
+			if int(recvSlot) == slot and int(recvChannel) == channel:
+				callback(True)
+				return {"Level":int(recvData)}
+			else:
+				if self.log.value == True:
+					print("Received msg does not match requested command")
+		callback(True)
+
+	def setSlotChannelMute(self, callback, slot, channel, mute):
+		self.sendTcpMessage(f"SM {slot},{channel},{'M' if mute==True else 'U'}\r")
+		callback(True)
+	
+	def getSlotChannelMute(self, callback, slot, channel):
+		self.sendTcpMessage(f"GM {slot},{channel}\r")
+		recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
+		if self.log.value == True:
+			print(f"Received msg: {recvMsg}")
+		recvData = ""
+		if recvMsg[:2] == "GM":
+			recvSet = recvMsg.split()[1]
+			recvSlot = recvSet.split(",")[0]
+			recvChannel = recvSet.split(",")[1]
+			recvData = recvMsg.split(",")[2]
+			if int(recvSlot) == slot and int(recvChannel) == channel:
+				callback(True)
+				return {"Mute":True if recvData=='M' else False}
+			else:
+				if self.log.value == True:
+					print("Received msg does not match requested command")
+		callback(True)
+	
+
 
 if __name__ == "__main__":
 	sp.registerPlugin(BoseControlSpace)
