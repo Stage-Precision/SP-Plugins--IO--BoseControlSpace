@@ -88,22 +88,22 @@ class BoseControlSpace(sp.BaseModule):
 		getGroupVolumeMasterMuteAction.addScriptTokens(["Mute"])
 
 		setSlotChannelVolumeAction = self.addAction("Set Slot Channel Volume", "setSlotChannelVolume", self.setSlotChannelVolume)
-		setSlotChannelVolumeAction.addIntParameter("Slot", 1, 1, 9)
+		setSlotChannelVolumeAction.addEnumParameter("Slot", 0, "1;2;3;4;5;6;7;8;9;A;B")
 		setSlotChannelVolumeAction.addIntParameter("Channel", 1, 1, 8)
 		setSlotChannelVolumeAction.addIntParameter("Level", 0, 0, 144)
 
 		getSlotChannelVolumeAction = self.addAction("Get Slot Channel Volume", "getSlotChannelVolume", self.getSlotChannelVolume)
-		getSlotChannelVolumeAction.addIntParameter("Slot", 1, 1, 9)
+		getSlotChannelVolumeAction.addEnumParameter("Slot", 0, "1;2;3;4;5;6;7;8;9;A;B")
 		getSlotChannelVolumeAction.addIntParameter("Channel", 1, 1, 8)
 		getSlotChannelVolumeAction.addScriptTokens(["Level"])
 
 		setSlotChannelMuteAction = self.addAction("Set Slot Channel Mute", "setSlotChannelMute", self.setSlotChannelMute)
-		setSlotChannelMuteAction.addIntParameter("Slot", 1, 1, 9)
+		setSlotChannelMuteAction.addEnumParameter("Slot", 0, "1;2;3;4;5;6;7;8;9;A;B")
 		setSlotChannelMuteAction.addIntParameter("Channel", 1, 1, 8)
 		setSlotChannelMuteAction.addBoolParameter("Mute", False)
 
 		getSlotChannelMuteAction = self.addAction("Get Slot Channel Mute", "getSlotChannelMute", self.getSlotChannelMute)
-		getSlotChannelMuteAction.addIntParameter("Slot", 1, 1, 9)
+		getSlotChannelMuteAction.addEnumParameter("Slot", 0, "1;2;3;4;5;6;7;8;9;A;B")
 		getSlotChannelMuteAction.addIntParameter("Channel", 1, 1, 8)
 		getSlotChannelMuteAction.addScriptTokens(["Mute"])
 
@@ -201,11 +201,13 @@ class BoseControlSpace(sp.BaseModule):
 	
 
 	def setSlotChannelVolume(self, callback, slot, channel, level):
-		self.sendTcpMessage(f"SV {slot},{channel},{level}\r")
+		slotstring = ["1", "2", "3", "4", "5", "6","7","8","9","a","b"]
+		self.sendTcpMessage(f"SV {slotstring[slot]},{channel},{level}\r")
 		callback(True)
 
 	def getSlotChannelVolume(self, callback, slot, channel):
-		self.sendTcpMessage(f"GV {slot},{channel}\r")
+		slotstring = ["1", "2", "3", "4", "5", "6","7","8","9","a","b"]
+		self.sendTcpMessage(f"GV {slotstring[slot]},{channel}\r")
 		recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
 		if self.log.value == True:
 			print(f"Received msg: {recvMsg}")
@@ -215,7 +217,7 @@ class BoseControlSpace(sp.BaseModule):
 			recvSlot = recvSet.split(",")[0]
 			recvChannel = recvSet.split(",")[1]
 			recvData = recvMsg.split(",")[2]
-			if int(recvSlot) == slot and int(recvChannel) == channel:
+			if recvSlot == slotstring[slot] and int(recvChannel) == channel:
 				callback(True)
 				return {"Level":int(recvData)}
 			else:
@@ -224,11 +226,13 @@ class BoseControlSpace(sp.BaseModule):
 		callback(True)
 
 	def setSlotChannelMute(self, callback, slot, channel, mute):
-		self.sendTcpMessage(f"SM {slot},{channel},{'M' if mute==True else 'U'}\r")
+		slotstring = ["1", "2", "3", "4", "5", "6","7","8","9","a","b"]
+		self.sendTcpMessage(f"SM {slotstring[slot]},{channel},{'M' if mute==True else 'U'}\r")
 		callback(True)
 	
 	def getSlotChannelMute(self, callback, slot, channel):
-		self.sendTcpMessage(f"GM {slot},{channel}\r")
+		slotstring = ["1", "2", "3", "4", "5", "6","7","8","9","a","b"]
+		self.sendTcpMessage(f"GM {slotstring[slot]},{channel}\r")
 		recvMsg = self.tcpSocket.recv(self.BufferSize).decode()
 		if self.log.value == True:
 			print(f"Received msg: {recvMsg}")
@@ -238,7 +242,7 @@ class BoseControlSpace(sp.BaseModule):
 			recvSlot = recvSet.split(",")[0]
 			recvChannel = recvSet.split(",")[1]
 			recvData = recvMsg.split(",")[2]
-			if int(recvSlot) == slot and int(recvChannel) == channel:
+			if recvSlot == slotstring[slot] and int(recvChannel) == channel:
 				callback(True)
 				return {"Mute":True if recvData=='M' else False}
 			else:
