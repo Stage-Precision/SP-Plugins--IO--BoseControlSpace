@@ -156,7 +156,7 @@ class BoseControlSpace(sp.BaseModule):
 		return {"ParameterSet":recvData}
 
 	def setGroupVolumeMasterLevel(self, callback, group, level):
-		self.sendTcpMessage(f"SG {group},{level}\r")
+		self.sendTcpMessage(f"SG {group},{int(level)}\r")
 		callback(True)
 
 	def getGroupVolumeMasterLevel(self, callback, group):
@@ -202,7 +202,7 @@ class BoseControlSpace(sp.BaseModule):
 
 	def setSlotChannelVolume(self, callback, slot, channel, level):
 		slotstring = ["1", "2", "3", "4", "5", "6","7","8","9","a","b"]
-		self.sendTcpMessage(f"SV {slotstring[slot]},{channel},{level}\r")
+		self.sendTcpMessage(f"SV {slotstring[slot]},{channel},{int(level)}\r")
 		callback(True)
 
 	def getSlotChannelVolume(self, callback, slot, channel):
